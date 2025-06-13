@@ -10,7 +10,9 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use('/uploads', express.static('uploads'));
 app.use('/api/auth', authRoutes);
+app.use('/api/content', contentRoutes);
 
 app.listen(3000, () => {
   console.log('Szerver fut a 3000-es porton');
