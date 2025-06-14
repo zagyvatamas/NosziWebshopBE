@@ -3,16 +3,33 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const db = require('../db');
+const sharp = require('sharp');
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+  }
 });
-const upload = multer({ storage });
 
-router.post('/contentAdd', upload.single('image'), (req, res) => {
+const fileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (ext === '.jpg' || ext === '.jpeg' || ext === '.png') {
+    cb(null, true);
+  } else {
+    cb(new Error('Csak JPG és PNG fájlok engedélyezettek!'), false);
+  }
+};
+const upload = multer({ storage, fileFilter });
+
+router.post('/contentAdd', upload.any(), (req, res) => {
   const { title, description, price, user_id } = req.body;
-  const imagePath = req.file ? req.file.path : null;
+
+  const imagePath = req.files && req.files.length > 0 ? 'uploads/' + req.files[0].filename : null;
 
   if (!title || !description || !imagePath || !price || !user_id) {
     return res.status(400).json({ error: 'Hiányzó mezők!' });
@@ -45,7 +62,7 @@ router.get('/contentAll', (req, res) => {
 
     const formattedResults = results.map(item => ({
       ...item,
-      image_url: `${req.protocol}://${req.get('host')}/${item.image_path}`
+      image_url: `${req.protocol}://${req.get('host')}/${item.image_path.replace(/\\/g, '/')}`
     }));
 
     res.json(formattedResults);
